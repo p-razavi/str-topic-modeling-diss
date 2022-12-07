@@ -42,7 +42,7 @@ knitr::opts_chunk$set(echo = TRUE)
       
  
   #keep the relevant variables and drop the rest
-      df1 <- df1 %>% 
+      df_stm <- df1 %>% 
         mutate(all_narratives = dplyr::coalesce(right_narrative, nonright_narrative)) %>% 
         select(ResponseId, Condition, all_narratives)
       
@@ -50,36 +50,35 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-```{r preprocessing}
-#stemming, dropping punctuation and stop words
-  processed <- textProcessor(df1$all_narratives, metadata = df1) 
+```{r preprocessing-5threshold}
+#stemming, dropping punctuation, numbers, and stop words
+  processed <- textProcessor(df_stm$all_narratives, metadata = df_stm) 
 
-#different parts of the processed data
-  out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
+#evaluate how many words and documents would be removed from the data set at each word threshold
+  plotRemoved(processed$documents, lower.thresh = seq(1, 20, by = 1))
+  
+#saving the different parts of the processed data
+  out <- prepDocuments(processed$documents, processed$vocab, processed$meta, lower.thresh = 5) #including words that appear in at least 5 documents
   docs <- out$documents
   vocab <- out$vocab
   meta <- out$meta
 
-#evaluate how many words and documents would be removed from the data set at each word threshold
-  plotRemoved(processed$documents, lower.thresh = seq(1, 20, by = 1))
-
-#for now, lets set the threshold at 5  
-  out <- prepDocuments(processed$documents, processed$vocab, processed$meta, lower.thresh = 5)
 ```
 
-# Determining the Optimal K
+## Determining the Optimal K
 
 ```{r}
-#Method 1: using the searchK algorithm
+#Method: using the searchK algorithm
   storage <- searchK(out$documents, out$vocab, K = c(2:20), prevalence = ~Condition, data = meta)
     #this warning was produced: "K=2 is equivalent to a unidimensional scaling model which you may prefer."
   
-  plot(storage) #looks like 9, 11, and 15 topics are good candidates
+  plot(storage) #looks like 9, 11, and 15 topics are good candidates (when lowerthreshold = 5)
 
 
 ```
 
-# STM Estimation 
+## STM Estimation (lower threshold set as 5)
+
 
 ```{r model-est}
 #model with 9 topics
@@ -94,7 +93,7 @@ anger_fit_15t <- stm(documents = out$documents, vocab = out$vocab, K = 15, preva
 ```
 
 
-## Explore the topics
+### Explore the topics
 
 ```{r}
 #look at collections of words that are associated with topics
@@ -120,15 +119,25 @@ anger_fit_15t <- stm(documents = out$documents, vocab = out$vocab, K = 15, preva
   topicQuality(model = anger_fit_15t, documents = out$documents)
   
 #a few examples of examining documents that are highly associated with topics
-  example_topic1 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 1)$docs[[1]]
-  example_topic2 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 2)$docs[[1]]
-  example_topic3 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 3)$docs[[1]]
-  example_topic4 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 4)$docs[[1]]
-  example_topic5 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 5)$docs[[1]] #needs more investigation
-  example_topic6 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 6)$docs[[1]]
-  example_topic7 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 7)$docs[[1]]
-  example_topic8 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 8)$docs[[1]]#needs more investigation
-  example_topic9 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 9)$docs[[1]]#needs more investigation
+  example_topic1 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 1)$docs[[1]]
+  example_topic2 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 2)$docs[[1]]
+  example_topic3 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 3)$docs[[1]]
+  example_topic4 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 4)$docs[[1]]
+  example_topic5 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 5)$docs[[1]] #needs more investigation
+  example_topic6 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 6)$docs[[1]]
+  example_topic7 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 7)$docs[[1]]
+  example_topic8 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 8)$docs[[1]]#needs more investigation
+  example_topic9 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 9)$docs[[1]]#needs more investigation
+  
+  example_topic1
+  example_topic2
+  example_topic3
+  example_topic4
+  example_topic5
+  example_topic6
+  example_topic7
+  example_topic8
+  example_topic9
   
   par(mfrow = c(1, 2), mar = c(0.5, 0.5, 1, 0.5))
   plotQuote(example_topic1, width = 30, main = "Topic 6")
@@ -148,5 +157,116 @@ summary(prep, topics = c(1:9))
 ```
 
 
+# STM Estimation (lower threshold set as 5)
 
+```{r preprocessing-10threshold}
+#stemming, dropping punctuation, numbers, and stop words
+  processed <- textProcessor(df_stm$all_narratives, metadata = df_stm) 
+
+
+#saving the different parts of the processed data
+  out <- prepDocuments(processed$documents, processed$vocab, processed$meta, lower.thresh = 10) #including words that appear in at least 10 documents
+  docs <- out$documents
+  vocab <- out$vocab
+  meta <- out$meta
+
+```
+
+## Determining the Optimal K
+
+```{r}
+#Method: using the searchK algorithm
+  storage <- searchK(out$documents, out$vocab, K = c(2:20), prevalence = ~Condition, data = meta)
+    #this warning was produced: "K=2 is equivalent to a unidimensional scaling model which you may prefer."
+  
+  plot(storage) #looks like 6 and 10 topics are good candidates (when lowerthreshold = 10)
+
+
+```
+
+
+```{r}
+#model with 6 topics
+anger_fit_6t <- stm(documents = out$documents, vocab = out$vocab, K = 6, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral")
+
+semanticCoherence(anger_fit_6t, out$documents)
+exclusivity(anger_fit_6t, M = 10, frexw = 0.7)
+
+#look at collections of words that are associated with topics
+  labels_6t <- labelTopics(anger_fit_6t, c(1:6), n = 10)
+    #Possibly more interpretable: using the LIFT method
+  cbind(paste("topic", 1:6), labels_6t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
+  
+#topic quality
+  topicQuality(model = anger_fit_6t, documents = out$documents)  
+  
+#a few examples of examining documents that are highly associated with topics
+  example_topic1 <- findThoughts(anger_fit_6t, texts = meta$all_narratives, n = 3, topics = 1)$docs[[1]]
+  example_topic2 <- findThoughts(anger_fit_6t, texts = meta$all_narratives, n = 3, topics = 2)$docs[[1]]
+  example_topic3 <- findThoughts(anger_fit_6t, texts = meta$all_narratives, n = 3, topics = 3)$docs[[1]]
+  example_topic4 <- findThoughts(anger_fit_6t, texts = meta$all_narratives, n = 3, topics = 4)$docs[[1]]
+  example_topic5 <- findThoughts(anger_fit_6t, texts = meta$all_narratives, n = 3, topics = 5)$docs[[1]] 
+  example_topic6 <- findThoughts(anger_fit_6t, texts = meta$all_narratives, n = 3, topics = 6)$docs[[1]]  
+  
+  
+  example_topic1
+  example_topic2
+  example_topic3
+  example_topic4
+  example_topic5
+  example_topic6
+  
+#estimate covariate relation    
+  out$meta$Condition <- as.factor(out$meta$Condition)
+  prep <- estimateEffect(1:6 ~ Condition, anger_fit_6t, meta = out$meta, uncertainty = "Global")
+  summary(prep, topics = c(1:6))   
+
+
+#################################### 
+#model with 10 topics
+anger_fit_10t <- stm(documents = out$documents, vocab = out$vocab, 
+                     K = 10, 
+                     prevalence = ~Condition, 
+                     max.em.its = 75, data = out$meta, init.type = "Spectral")
+
+semanticCoherence(anger_fit_10t, out$documents)
+#exclusivity(anger_fit_10t, M = 10, frexw = 0.7)
+
+#look at collections of words that are associated with topics
+  labels_10t <- labelTopics(anger_fit_10t, c(1:10), n = 10)
+    #Possibly more interpretable: using the LIFT method
+  cbind(paste("topic", 1:10), labels_10t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
+  
+#topic quality
+  topicQuality(model = anger_fit_10t, documents = out$documents)  
+  
+#a few examples of examining documents that are highly associated with topics
+  example_topic1 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 1)$docs[[1]]
+  example_topic2 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 2)$docs[[1]]
+  example_topic3 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 3)$docs[[1]]
+  example_topic4 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 4)$docs[[1]]
+  example_topic5 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 5)$docs[[1]] 
+  example_topic6 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 6)$docs[[1]] 
+  example_topic7 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 7)$docs[[1]] 
+  example_topic8 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 8)$docs[[1]] 
+  example_topic9 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 9)$docs[[1]] 
+  example_topic10 <- findThoughts(anger_fit_10t, texts = meta$all_narratives, n = 3, topics = 10)$docs[[1]] 
+
+  example_topic1
+  example_topic2
+  example_topic3
+  example_topic4
+  example_topic5
+  example_topic6
+  example_topic7
+  example_topic8
+  example_topic9
+  example_topic10
+
+  
+#estimate covariate relation    
+  out$meta$Condition <- as.factor(out$meta$Condition)
+  prep <- estimateEffect(1:10 ~ Condition, anger_fit_10t, meta = out$meta, uncertainty = "Global")
+  summary(prep, topics = c(1:10))  
+```
 

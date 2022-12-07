@@ -1,0 +1,152 @@
+---
+title: "Structural Topic Modeling of the Anger Narratives"
+author: "Pooya Razavi"
+date: "2022-12-06"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+```{r setup, include=FALSE, warning=FALSE}
+#load libraries
+package_list <- c("dplyr", "tidyr", "ggplot2", "tidytext", "topicmodels", "stm")
+lapply(package_list, require, character.only = TRUE)
+
+
+df <- readxl::read_xlsx("C:/Users/pooya/Dropbox (University of Oregon)/Anger Dissertation/Prototype study analysis/ProcessedData_F21_W22_S22_F22.xlsx")
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Pre-processing
+
+```{r ingest}
+ #apply the preregistered data exclusion
+    #assigning values to factor levels
+      df$NarrativeWritten <- as.factor(df$NarrativeWritten)
+      df$NarrativeRelevant <- as.factor(df$NarrativeRelevant)
+      df$Condition <- as.factor(df$Condition)
+      
+      levels(df$NarrativeWritten) <- c("No", "Yes")
+      levels(df$NarrativeRelevant) <- c("No", "Yes", NA, NA) 
+      levels(df$Condition) <- c("justified", "nonjustified", NA)
+    
+    #drop cases following preregistration
+      df1 <- df %>% 
+        filter(NarrativeWritten != "No") %>% 
+        filter(NarrativeRelevant != "No") %>% 
+        filter(!is.na(Condition))
+      
+ 
+  #keep the relevant variables and drop the rest
+      df1 <- df1 %>% 
+        mutate(all_narratives = dplyr::coalesce(right_narrative, nonright_narrative)) %>% 
+        select(ResponseId, Condition, all_narratives)
+      
+
+```
+
+
+```{r preprocessing}
+#stemming, dropping punctuation and stop words
+  processed <- textProcessor(df1$all_narratives, metadata = df1) 
+
+#different parts of the processed data
+  out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
+  docs <- out$documents
+  vocab <- out$vocab
+  meta <- out$meta
+
+#evaluate how many words and documents would be removed from the data set at each word threshold
+  plotRemoved(processed$documents, lower.thresh = seq(1, 20, by = 1))
+
+#for now, lets set the threshold at 5  
+  out <- prepDocuments(processed$documents, processed$vocab, processed$meta, lower.thresh = 5)
+```
+
+# Determining the Optimal K
+
+```{r}
+#Method 1: using the searchK algorithm
+  storage <- searchK(out$documents, out$vocab, K = c(2:20), prevalence = ~Condition, data = meta)
+    #this warning was produced: "K=2 is equivalent to a unidimensional scaling model which you may prefer."
+  
+  plot(storage) #looks like 9, 11, and 15 topics are good candidates
+
+
+```
+
+# STM Estimation 
+
+```{r model-est}
+#model with 9 topics
+anger_fit_9t <- stm(documents = out$documents, vocab = out$vocab, K = 9, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral")
+
+#model with 11 topics
+anger_fit_11t <- stm(documents = out$documents, vocab = out$vocab, K = 11, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral")
+
+#model with 15 topics
+anger_fit_15t <- stm(documents = out$documents, vocab = out$vocab, K = 15, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral")
+
+```
+
+
+## Explore the topics
+
+```{r}
+#look at collections of words that are associated with topics
+  labels_9t <- labelTopics(anger_fit_9t, c(1:9), n = 10)
+  labels_11t <- labelTopics(anger_fit_11t, c(1:11), n = 10)
+  labels_15t <- labelTopics(anger_fit_15t, c(1:15), n = 10)
+
+  par(mfrow = c(1, 1))
+
+  #Plotting highest probable words
+  plot(anger_fit_9t, type = "labels")
+  plot(anger_fit_11t, type = "labels")
+  plot(anger_fit_15t, type = "labels")
+  
+  #Possibly more interpretable: the LIFT method
+  cbind(paste("topic", 1:9), labels_9t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
+  cbind(paste("topic", 1:11), labels_11t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
+  cbind(paste("topic", 1:15), labels_15t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
+
+  #topic quality
+  topicQuality(model = anger_fit_9t, documents = out$documents)
+  topicQuality(model = anger_fit_11t, documents = out$documents)
+  topicQuality(model = anger_fit_15t, documents = out$documents)
+  
+#a few examples of examining documents that are highly associated with topics
+  example_topic1 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 1)$docs[[1]]
+  example_topic2 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 2)$docs[[1]]
+  example_topic3 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 3)$docs[[1]]
+  example_topic4 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 4)$docs[[1]]
+  example_topic5 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 5)$docs[[1]] #needs more investigation
+  example_topic6 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 6)$docs[[1]]
+  example_topic7 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 7)$docs[[1]]
+  example_topic8 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 8)$docs[[1]]#needs more investigation
+  example_topic9 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 2, topics = 9)$docs[[1]]#needs more investigation
+  
+  par(mfrow = c(1, 2), mar = c(0.5, 0.5, 1, 0.5))
+  plotQuote(example_topic1, width = 30, main = "Topic 6")
+  plotQuote(example_topic2, width = 30, main = "Topic 18")
+  
+#topic correlations
+  topic_correlation<-topicCorr(anger_fit_9t)
+  plot(topic_correlation)
+```
+
+## Estimate Covariate Relation
+
+```{r}
+out$meta$Condition <- as.factor(out$meta$Condition)
+prep <- estimateEffect(1:9 ~ Condition, anger_fit_9t, meta = out$meta, uncertainty = "Global")
+summary(prep, topics = c(1:9))
+```
+
+
+
+

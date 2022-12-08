@@ -69,10 +69,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 #Method: using the searchK algorithm
+  set.seed(110)
   storage <- searchK(out$documents, out$vocab, K = c(2:20), prevalence = ~Condition, data = meta)
     #this warning was produced: "K=2 is equivalent to a unidimensional scaling model which you may prefer."
   
-  plot(storage) #looks like 9, 11, and 15 topics are good candidates (when lowerthreshold = 5)
+  plot(storage) #looks like 9, 11, and 14 topics are good candidates (when lowerthreshold = 5)
 
 
 ```
@@ -82,13 +83,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r model-est}
 #model with 9 topics
-anger_fit_9t <- stm(documents = out$documents, vocab = out$vocab, K = 9, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral")
+anger_fit_9t <- stm(documents = out$documents, vocab = out$vocab, K = 9, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
 
 #model with 11 topics
-anger_fit_11t <- stm(documents = out$documents, vocab = out$vocab, K = 11, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral")
+anger_fit_11t <- stm(documents = out$documents, vocab = out$vocab, K = 11, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
 
-#model with 15 topics
-anger_fit_15t <- stm(documents = out$documents, vocab = out$vocab, K = 15, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral")
+#model with 14 topics
+anger_fit_14t <- stm(documents = out$documents, vocab = out$vocab, K = 14, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
 
 ```
 
@@ -99,24 +100,38 @@ anger_fit_15t <- stm(documents = out$documents, vocab = out$vocab, K = 15, preva
 #look at collections of words that are associated with topics
   labels_9t <- labelTopics(anger_fit_9t, c(1:9), n = 10)
   labels_11t <- labelTopics(anger_fit_11t, c(1:11), n = 10)
-  labels_15t <- labelTopics(anger_fit_15t, c(1:15), n = 10)
+  labels_14t <- labelTopics(anger_fit_14t, c(1:14), n = 10)
 
   par(mfrow = c(1, 1))
 
   #Plotting highest probable words
-  plot(anger_fit_9t, type = "labels")
-  plot(anger_fit_11t, type = "labels")
-  plot(anger_fit_15t, type = "labels")
+  png(file="topic_words_9t.png", width=1100, height=500)
+  par(mfrow = c(1, 2))
+  plot(anger_fit_9t, type = "labels", topics = 1:5, labeltype = "frex", n = 10)
+  plot(anger_fit_9t, type = "labels", topics = 6:9, labeltype = "frex", n = 10)
+  dev.off()
+  
+  png(file="topic_words_11t.png", width=1100, height=500)
+  par(mfrow = c(1, 2))
+  plot(anger_fit_11t, type = "labels", topics = 1:6, labeltype = "frex", n = 10)
+  plot(anger_fit_11t, type = "labels", topics = 7:11, labeltype = "frex", n = 10)
+  dev.off()
+  
+  png(file="topic_words_14t.png", width=1100, height=500)
+  par(mfrow = c(1, 2))
+  plot(anger_fit_14t, type = "labels", topics = 1:7, labeltype = "frex", n = 10)
+  plot(anger_fit_14t, type = "labels", topics = 8:14, labeltype = "frex", n = 10)
+  dev.off()
   
   #Possibly more interpretable: the LIFT method
   cbind(paste("topic", 1:9), labels_9t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
   cbind(paste("topic", 1:11), labels_11t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
-  cbind(paste("topic", 1:15), labels_15t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
+  cbind(paste("topic", 1:14), labels_15t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
 
   #topic quality
   topicQuality(model = anger_fit_9t, documents = out$documents)
   topicQuality(model = anger_fit_11t, documents = out$documents)
-  topicQuality(model = anger_fit_15t, documents = out$documents)
+  topicQuality(model = anger_fit_14t, documents = out$documents)
   
 #a few examples of examining documents that are highly associated with topics
   example_topic1 <- findThoughts(anger_fit_9t, texts = meta$all_narratives, n = 3, topics = 1)$docs[[1]]
@@ -268,5 +283,65 @@ semanticCoherence(anger_fit_10t, out$documents)
   out$meta$Condition <- as.factor(out$meta$Condition)
   prep <- estimateEffect(1:10 ~ Condition, anger_fit_10t, meta = out$meta, uncertainty = "Global")
   summary(prep, topics = c(1:10))  
+```
+
+
+```{r}
+df_w_stm_11t <- cbind(processed$meta, anger_fit_11t[["theta"]]) 
+colnames(df_w_stm_11t)[4:14] <- c(paste0("topic", 1:11))
+
+glimpse(df_w_stm_11t)
+
+df_w_stm_11t %>% 
+  select(contains("topic")) %>% 
+  psych::describe()
+
+
+df_w_stm_11t %>% 
+  select(Condition, contains("topic")) %>% 
+  psych::describeBy(group = df_w_stm_11t$Condition)
+
+df_w_stm_11t %>% 
+  group_by(Condition) %>% 
+  summarise(across(contains("topic"), mean, na.rm=TRUE))
+
+for (i in 1:11){
+  dv_col_number <- i + 3
+  
+    iv <- df_w_stm_11t$Condition
+    dv <- df_w_stm_11t[,dv_col_number]
+  
+      ttest <- t.test(dv ~ iv)
+      effect_size <- effectsize::cohens_d(dv ~ iv, pooled_sd = FALSE)
+      t <- ttest[["statistic"]] %>% round(2)
+      df <- ttest[["parameter"]] %>% round(1)
+      original_p <- ttest[["p.value"]] %>% round(3)
+      p <- if_else(original_p >= .001, paste0("= ", as.character(original_p)), "< .001")
+      d <- effect_size[1,1] %>% round(2)    
+      topic <- (colnames(df_w_stm_11t))[dv_col_number]
+      print(paste0(topic, ": t(", df, ") = ", t, ", p ", p, ", d = ", d))
+
+}
+
+par(mfrow = c(4, 3))
+df_w_stm_11t_long <- df_w_stm_11t %>% 
+                        pivot_longer(cols = contains("topic"),
+                                     names_to = "Topic",
+                                     values_to = "Theta")
+
+ggplot(df_w_stm_11t_long, aes(x = Theta, fill = Theta)) + 
+                geom_histogram(aes(y = ..density..), binwidth = 0.005) +
+                geom_density(colour = "lightblue") +
+                facet_wrap ( ~ Topic) +
+                theme_minimal()
+
+ggplot(df_w_stm_11t_long, aes(x = Theta, fill = Condition)) + 
+                geom_histogram(aes(y = ..density..), binwidth = 0.005) +
+                #geom_density(alpha = 0.4) +
+                facet_wrap ( ~ Topic) +
+                xlim(0, 0.4) +
+                theme_minimal() +
+                theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
 ```
 

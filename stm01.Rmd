@@ -70,7 +70,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 #Method: using the searchK algorithm
   set.seed(110)
-  storage <- searchK(out$documents, out$vocab, K = c(2:20), prevalence = ~Condition, data = meta)
+  storage <- searchK(out$documents, out$vocab, K = c(2:40), prevalence = ~Condition, data = meta, seed = 110)
     #this warning was produced: "K=2 is equivalent to a unidimensional scaling model which you may prefer."
   
   plot(storage) #looks like 9, 11, and 14 topics are good candidates (when lowerthreshold = 5)
@@ -82,6 +82,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r model-est}
+#model with 7 topics
+anger_fit_7t <- stm(documents = out$documents, vocab = out$vocab, K = 7, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
+
 #model with 9 topics
 anger_fit_9t <- stm(documents = out$documents, vocab = out$vocab, K = 9, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
 
@@ -91,10 +94,140 @@ anger_fit_11t <- stm(documents = out$documents, vocab = out$vocab, K = 11, preva
 #model with 14 topics
 anger_fit_14t <- stm(documents = out$documents, vocab = out$vocab, K = 14, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
 
+#model with 16 topics
+anger_fit_16t <- stm(documents = out$documents, vocab = out$vocab, K = 16, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
+
+#model with 25 topics
+anger_fit_25t <- stm(documents = out$documents, vocab = out$vocab, K = 25, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
+
 ```
 
 
 ### Explore the topics
+
+9 Topics
+
+```{r}
+
+#Internal Plot
+plot(anger_fit_9t, n = 7)
+plot.STM(anger_fit_9t, type = "summary", n = 7, labeltype = "frex")
+
+####Plot using ggplot
+#get the expected proportions for each topic
+exp_proportionas_9t <- make.dt(anger_fit_9t) %>% 
+                          summarise_all(mean) %>% 
+                            t() %>% as.data.frame() %>% 
+                            tibble::rownames_to_column("Topic") %>% 
+                            filter(Topic != "docnum")
+#get the top word list
+exp_proportionas_9t <- exp_proportionas_9t %>% 
+                            cbind((labelTopics(anger_fit_9t, c(1:9), n = 7))[["frex"]])
+
+#attach it to the proportions df
+top_words <- paste(exp_proportionas_9t$`1`, exp_proportionas_9t$`2`,
+                                                     exp_proportionas_9t$`3`, exp_proportionas_9t$`4`,
+                                                     exp_proportionas_9t$`5`, exp_proportionas_9t$`6`,
+                                                     exp_proportionas_9t$`7`, sep = ", ")
+
+exp_proportionas_9t <- exp_proportionas_9t %>% 
+                            mutate(top_words = top_words)
+
+#ggplot
+exp_proportionas_9t %>% 
+  ggplot(., aes(x = reorder(Topic, V1), y = V1, label = top_words, fill = Topic)) +
+    geom_col(show.legend = FALSE) +
+    geom_text(hjust = 0, nudge_y = 0.002, size = 4,
+              family = "serif") +
+    coord_flip() +
+    scale_y_continuous(expand = c(0,0),
+                       limits = c(0, 0.30),
+                       labels = scales::percent_format())  +
+  ggthemes::theme_tufte(base_family = "serif", ticks = FALSE) +
+      theme(plot.title = element_text(size = 16,
+                                      family="serif"),
+        plot.subtitle = element_text(size = 13)) +
+  labs(x = NULL, y = "Expected Topic Prevalence",
+       title = "Topic Prevalence Across All Narratives",
+       subtitle = "With the top seven words (using FREX algorithm) that contribute to each topic")
+```
+
+Making a function based on the code above
+
+```{r}
+stm_plot <- function(model_name) {
+  
+  #get the expected proportions for each topic
+    exp_proportions <- make.dt(model_name) %>% 
+                              summarise_all(mean) %>% 
+                                t() %>% as.data.frame() %>% 
+                                tibble::rownames_to_column("Topic") %>% 
+                                filter(Topic != "docnum")
+    #number of topics
+    t_number <- nrow(exp_proportions)
+    
+    #get the top word list
+    exp_proportions <- exp_proportions %>% 
+                                cbind((labelTopics(model_name, c(1:t_number), n = 7))[["frex"]])
+    
+    #attach it to the proportions df
+    top_words <- paste(exp_proportions$`1`, exp_proportions$`2`,
+                        exp_proportions$`3`, exp_proportions$`4`,
+                        exp_proportions$`5`, exp_proportions$`6`,
+                        exp_proportions$`7`, sep = ", ")
+    
+    exp_proportions <- exp_proportions %>% 
+                                mutate(top_words = top_words)
+    
+    #ggplot
+    exp_proportions %>% 
+      ggplot(., aes(x = reorder(Topic, V1), y = V1, label = top_words, fill = Topic)) +
+        geom_col(show.legend = FALSE) +
+        geom_text(hjust = 0, nudge_y = 0.002, size = 4,
+                  family = "serif") +
+        coord_flip() +
+        scale_y_continuous(expand = c(0,0),
+                           limits = c(0, 0.30),
+                           labels = scales::percent_format())  +
+      ggthemes::theme_tufte(base_family = "serif", ticks = FALSE) +
+      theme(plot.title = element_text(size = 16,
+                                      family="serif"),
+            plot.subtitle = element_text(size = 13)) +
+      labs(x = NULL, y = "Expected Topic Prevalence",
+           title = paste0("Topic Prevalence Across All Narratives (", t_number, " Topics)"),
+           subtitle = "With the top seven words (using FREX algorithm) that contribute to each topic")
+  
+  
+}
+
+
+```
+
+Exploring other models (7-, 11-, 14-, and 25-topics)
+
+```{r}
+#7 topics
+stm_plot(anger_fit_7t)
+
+#11 topics
+plot(anger_fit_11t, n = 7)
+plot.STM(anger_fit_11t, type = "summary", n = 7, labeltype = "frex")
+stm_plot(anger_fit_11t)
+
+##14 topics
+plot(anger_fit_14t, n = 7)
+plot.STM(anger_fit_14t, type = "summary", n = 7, labeltype = "frex")
+stm_plot(anger_fit_14t)
+
+##16 topics
+stm_plot(anger_fit_16t)
+
+##25 topics
+stm_plot(anger_fit_25t)
+
+
+```
+
 
 ```{r}
 #look at collections of words that are associated with topics
@@ -167,8 +300,61 @@ anger_fit_14t <- stm(documents = out$documents, vocab = out$vocab, K = 14, preva
 
 ```{r}
 out$meta$Condition <- as.factor(out$meta$Condition)
-prep <- estimateEffect(1:9 ~ Condition, anger_fit_9t, meta = out$meta, uncertainty = "Global")
-summary(prep, topics = c(1:9))
+
+#7-topic model
+prep_7t <- estimateEffect(formula = 1:7 ~ Condition, anger_fit_7t, meta = out$meta, uncertainty = "Global")
+summary(prep_7t, topics = c(1:7))
+
+#9-topic model
+prep_9t <- estimateEffect(1:9 ~ Condition, anger_fit_9t, meta = out$meta, uncertainty = "Global")
+summary(prep_9t, topics = c(1:9))
+
+#11-topic model
+prep_11t <- estimateEffect(1:11 ~ Condition, anger_fit_11t, meta = out$meta, uncertainty = "Global")
+summary(prep_11t, topics = c(1:11))
+
+#16-topic model
+prep_16t <- estimateEffect(1:16 ~ Condition, anger_fit_16t, meta = out$meta, uncertainty = "Global")
+summary(prep_16t, topics = c(1:16))
+
+#25-topic model
+prep_25t <- estimateEffect(1:25 ~ Condition, anger_fit_25t, meta = out$meta, uncertainty = "Global")
+
+
+#function to report the comparisons in a more organized way (in a single table)
+report_stm_cov_effect <- function(prepped_model) {
+      
+      model_results <- data.frame(Topic = NA,
+                                  Var = NA,
+                                  Estimate = NA,
+                                  SE = NA,
+                                  t = NA,
+                                  p = NA)
+      t_number <- max(prepped_model[["topics"]])
+      
+      for(topic in 1:t_number){
+        print(topic)
+        
+        topic_summary <- (summary(prepped_model, topics = topic))[["tables"]] %>% 
+                              as.data.frame() %>% 
+                              tibble::rownames_to_column("Var")
+        
+        colnames(topic_summary) <- c("Var", "Estimate", "SE", "t", "p")
+        Topic <- c(topic, topic)
+        topic_summary <- cbind(Topic, topic_summary)
+        
+        model_results <- rbind(model_results, topic_summary)
+      }
+      
+      model_results[-1,] %>% knitr::kable(digits = 3) %>% kableExtra::kable_styling()
+
+}
+
+report_stm_cov_effect(prep_7t)
+report_stm_cov_effect(prep_11t)
+report_stm_cov_effect(prep_16t)
+report_stm_cov_effect(prep_25t)
+
 ```
 
 

@@ -75,8 +75,57 @@ knitr::opts_chunk$set(echo = TRUE)
   
   plot(storage) #looks like 9, 11, and 14 topics are good candidates (when lowerthreshold = 5)
 
+  #save the results of searchK with frequency threshold = 5 and K = 2:40
+    searchk_results <- storage[["results"]] %>% as.data.frame() %>% apply(., 2, as.numeric)
+    #write.csv(searchk_results, "searchk_threshold5_topics2to40_results.csv")
 
 ```
+
+## Visualize SearchK Results
+
+```{r}
+searchk_df <- read.csv("searchk_threshold5_topics2to40_results.csv") %>% 
+                      select(-X) #drop the first column
+
+#Exclusivity
+  ggplot(searchk_df, aes(x = K, y = exclus)) +
+    geom_point() +
+    geom_line() +
+    labs(title = "Topic Exclusivity",
+         x = "Topic",
+         y = "Exclusivity") +
+    theme_minimal()
+
+#Semantic Coherence
+  ggplot(searchk_df, aes(x = K, y = semcoh)) +
+    geom_point(color = "darkblue") +
+    geom_line(color = "darkblue") +
+    labs(title = "Semantic Coherence",
+         x = "Topic",
+         y = "Coherence") +
+    theme_minimal()
+
+#Residual
+  ggplot(searchk_df, aes(x = K, y = residual)) +
+    geom_point(color = "darkred") +
+    geom_line(color = "darkred") +
+    labs(title = "Residuals",
+         x = "Topic",
+         y = "Residual") +
+    theme_minimal()
+
+#Held-out likelihood
+  ggplot(searchk_df, aes(x = K, y = heldout)) +
+    geom_point(color = "darkgreen") +
+    geom_line(color = "darkgreen") +
+    labs(title = "Residuals",
+         x = "Topic",
+         y = "Heldout Likelihood") +
+    theme_minimal()
+
+
+```
+
 
 ## STM Estimation (lower threshold set as 5)
 

@@ -20,7 +20,55 @@ df <- readxl::read_xlsx("C:/Users/pooya/Dropbox (University of Oregon)/Anger Dis
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r topic-prop-plot-function}
+stm_plot <- function(model_name, perc_bar_lim = .3, ylabel = "yes") {
+  
+  #get the expected proportions for each topic
+    exp_proportions <- make.dt(model_name) %>% 
+                              summarise_all(mean) %>% 
+                                t() %>% as.data.frame() %>% 
+                                tibble::rownames_to_column("Topic") %>% 
+                                filter(Topic != "docnum")
+    #number of topics
+    t_number <- nrow(exp_proportions)
+    
+    #get the top word list
+    exp_proportions <- exp_proportions %>% 
+                                cbind((labelTopics(model_name, c(1:t_number), n = 7))[["frex"]])
+    
+    #attach it to the proportions df
+    top_words <- paste(exp_proportions$`1`, exp_proportions$`2`,
+                        exp_proportions$`3`, exp_proportions$`4`,
+                        exp_proportions$`5`, exp_proportions$`6`,
+                        exp_proportions$`7`, sep = ", ")
+    
+    exp_proportions <- exp_proportions %>% 
+                                mutate(top_words = top_words)
+    
+    #ggplot
+    exp_proportions %>% 
+      ggplot(., aes(x = reorder(Topic, V1), y = V1, label = top_words, fill = Topic)) +
+        geom_col(show.legend = FALSE) +
+        geom_text(hjust = 0, nudge_y = 0.002, size = 4,
+                  family = "serif") +
+        coord_flip() +
+        scale_y_continuous(expand = c(0,0),
+                           limits = c(0, perc_bar_lim),
+                           labels = scales::percent_format())  +
+      ggthemes::theme_tufte(base_family = "serif", ticks = FALSE) +
+      theme(plot.title = element_text(size = 16,
+                                      family="serif"),
+            plot.subtitle = element_text(size = 13),
+        axis.line.x = element_line(color='darkgrey')) +
+      labs(x = NULL, y = if_else(ylabel == "yes", "Expected Topic Proportions", ""),
+           title = paste0(t_number, " Topics"))
+           
+  
+  
+}
 
+
+```
 # Pre-processing
 
 ```{r ingest}
@@ -88,63 +136,87 @@ searchk_df <- read.csv("searchk_threshold5_topics2to40_results.csv") %>%
                       select(-X) #drop the first column
 
 #Exclusivity
-  ggplot(searchk_df, aes(x = K, y = exclus)) +
-    geom_point() +
-    geom_line() +
-    labs(title = "Topic Exclusivity",
-         x = "Topic",
-         y = "Exclusivity") +
-    theme_minimal()
+  exclus_plot <- ggplot(searchk_df, aes(x = K, y = exclus)) +
+                  geom_point() +
+                  geom_line() +
+                  labs(title = "Topic Exclusivity",
+                       x = "Topic",
+                       y = "Exclusivity") +
+                  theme_bw() +
+                  theme(
+                  plot.background = element_blank(),
+                  panel.grid.minor = element_blank(),
+                  panel.grid.major = element_blank(),
+                  text=element_text(size = 12, family="serif"))
 
 #Semantic Coherence
-  ggplot(searchk_df, aes(x = K, y = semcoh)) +
-    geom_point(color = "darkblue") +
-    geom_line(color = "darkblue") +
-    labs(title = "Semantic Coherence",
-         x = "Topic",
-         y = "Coherence") +
-    theme_minimal()
+  coher_plot <- ggplot(searchk_df, aes(x = K, y = semcoh)) +
+                  geom_point(color = "darkblue") +
+                  geom_line(color = "darkblue") +
+                  labs(title = "Semantic Coherence",
+                       x = "Topic",
+                       y = "Coherence") +
+                  theme_bw() +
+                  theme(
+                  plot.background = element_blank(),
+                  panel.grid.minor = element_blank(),
+                  panel.grid.major = element_blank(),
+                  text=element_text(size = 12, family="serif"))
 
 #Residual
-  ggplot(searchk_df, aes(x = K, y = residual)) +
-    geom_point(color = "darkred") +
-    geom_line(color = "darkred") +
-    labs(title = "Residuals",
-         x = "Topic",
-         y = "Residual") +
-    theme_minimal()
+  resid_plot <- ggplot(searchk_df, aes(x = K, y = residual)) +
+                  geom_point(color = "darkred") +
+                  geom_line(color = "darkred") +
+                  labs(title = "Residuals",
+                       x = "Topic",
+                       y = "Residual") +
+                  theme_bw() +
+                  theme(
+                  plot.background = element_blank(),
+                  panel.grid.minor = element_blank(),
+                  panel.grid.major = element_blank(),
+                  text=element_text(size = 12, family="serif"))
 
 #Held-out likelihood
-  ggplot(searchk_df, aes(x = K, y = heldout)) +
-    geom_point(color = "darkgreen") +
-    geom_line(color = "darkgreen") +
-    labs(title = "Residuals",
-         x = "Topic",
-         y = "Heldout Likelihood") +
-    theme_minimal()
+  heldout_plot <- ggplot(searchk_df, aes(x = K, y = heldout)) +
+                    geom_point(color = "darkgreen") +
+                    geom_line(color = "darkgreen") +
+                    labs(title = "Heldout Likelihood",
+                         x = "Topic",
+                         y = "Likelihood") +
+                    theme_bw() +
+                  theme(
+                  plot.background = element_blank(),
+                  panel.grid.minor = element_blank(),
+                  panel.grid.major = element_blank(),
+                  text=element_text(size = 12, family="serif"))
 
-
+  
+#four plots in a figure
+  four_p <- ggpubr::ggarrange(heldout_plot, resid_plot, exclus_plot, coher_plot,
+                            ncol = 2, nrow = 2, align = "hv")
+  
+  ##ggsave(plot = four_p, width = 9, height = 5, dpi = 300, filename = "searchK_threshold5_2to40_ggplot.png")  
 ```
 
 
-## STM Estimation (lower threshold set as 5)
+## STM Estimation 
+
+(lower threshold set as 5)
 
 
 ```{r model-est}
-#model with 7 topics
-anger_fit_7t <- stm(documents = out$documents, vocab = out$vocab, K = 7, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
+#model with 6 topics
+anger_fit_6t <- stm(documents = out$documents, vocab = out$vocab, K = 6, prevalence = ~Condition, max.em.its = 100, data = out$meta, init.type = "Spectral", seed = 110)
 
-#model with 9 topics
-anger_fit_9t <- stm(documents = out$documents, vocab = out$vocab, K = 9, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
-
-#model with 11 topics
-anger_fit_11t <- stm(documents = out$documents, vocab = out$vocab, K = 11, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
-
-#model with 14 topics
-anger_fit_14t <- stm(documents = out$documents, vocab = out$vocab, K = 14, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
+#model with 12 topics
+anger_fit_12t <- stm(documents = out$documents, vocab = out$vocab, K = 12, prevalence = ~Condition, max.em.its = 100, data = out$meta, init.type = "Spectral", seed = 110)
 
 #model with 16 topics
-anger_fit_16t <- stm(documents = out$documents, vocab = out$vocab, K = 16, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
+anger_fit_16t <- stm(documents = out$documents, vocab = out$vocab, K = 16, prevalence = ~Condition, max.em.its = 100, data = out$meta, init.type = "Spectral", seed = 110)
+
+#model with 22 topics
+anger_fit_22t <- stm(documents = out$documents, vocab = out$vocab, K = 22, prevalence = ~Condition, max.em.its = 100, data = out$meta, init.type = "Spectral", seed = 110)
 
 #model with 25 topics
 anger_fit_25t <- stm(documents = out$documents, vocab = out$vocab, K = 25, prevalence = ~Condition, max.em.its = 75, data = out$meta, init.type = "Spectral", seed = 110)
@@ -152,7 +224,25 @@ anger_fit_25t <- stm(documents = out$documents, vocab = out$vocab, K = 25, preva
 ```
 
 
-### Explore the topics
+## Plot Topic Proportions
+
+```{r}
+
+six_t_plot <- stm_plot(anger_fit_6t, perc_bar_lim = 0.45, ylabel = "no")
+twelve_t_plot <- stm_plot(anger_fit_12t, perc_bar_lim = 0.45, ylabel = "no")
+sixteen_t_plot <- stm_plot(anger_fit_16t, perc_bar_lim = 0.45, ylabel = "no")
+twentytwo_t_plot <- stm_plot(anger_fit_22t, perc_bar_lim = 0.45, ylabel = "no")
+twentyfive_t_plot <- stm_plot(anger_fit_25t, perc_bar_lim = 0.45, ylabel = "yes")
+
+#three plots in a figure
+  three_p <- ggpubr::ggarrange(six_t_plot, sixteen_t_plot, twentyfive_t_plot,
+                            ncol = 1, nrow = 3, align = "hv",
+                            heights = c(0.185, 0.34, 0.525))
+  three_p
+  
+  ##ggsave(plot = three_p, width = 8.5, height = 10.5, dpi = 300, filename = "three_topwords_w_proportions.png") 
+```
+
 
 9 Topics
 
@@ -195,62 +285,14 @@ exp_proportionas_9t %>%
   ggthemes::theme_tufte(base_family = "serif", ticks = FALSE) +
       theme(plot.title = element_text(size = 16,
                                       family="serif"),
-        plot.subtitle = element_text(size = 13)) +
+        plot.subtitle = element_text(size = 13),
+        axis.line.x = element_line(color='darkgrey')) +
   labs(x = NULL, y = "Expected Topic Prevalence",
        title = "Topic Prevalence Across All Narratives",
        subtitle = "With the top seven words (using FREX algorithm) that contribute to each topic")
 ```
 
-Making a function based on the code above
 
-```{r}
-stm_plot <- function(model_name) {
-  
-  #get the expected proportions for each topic
-    exp_proportions <- make.dt(model_name) %>% 
-                              summarise_all(mean) %>% 
-                                t() %>% as.data.frame() %>% 
-                                tibble::rownames_to_column("Topic") %>% 
-                                filter(Topic != "docnum")
-    #number of topics
-    t_number <- nrow(exp_proportions)
-    
-    #get the top word list
-    exp_proportions <- exp_proportions %>% 
-                                cbind((labelTopics(model_name, c(1:t_number), n = 7))[["frex"]])
-    
-    #attach it to the proportions df
-    top_words <- paste(exp_proportions$`1`, exp_proportions$`2`,
-                        exp_proportions$`3`, exp_proportions$`4`,
-                        exp_proportions$`5`, exp_proportions$`6`,
-                        exp_proportions$`7`, sep = ", ")
-    
-    exp_proportions <- exp_proportions %>% 
-                                mutate(top_words = top_words)
-    
-    #ggplot
-    exp_proportions %>% 
-      ggplot(., aes(x = reorder(Topic, V1), y = V1, label = top_words, fill = Topic)) +
-        geom_col(show.legend = FALSE) +
-        geom_text(hjust = 0, nudge_y = 0.002, size = 4,
-                  family = "serif") +
-        coord_flip() +
-        scale_y_continuous(expand = c(0,0),
-                           limits = c(0, 0.30),
-                           labels = scales::percent_format())  +
-      ggthemes::theme_tufte(base_family = "serif", ticks = FALSE) +
-      theme(plot.title = element_text(size = 16,
-                                      family="serif"),
-            plot.subtitle = element_text(size = 13)) +
-      labs(x = NULL, y = "Expected Topic Prevalence",
-           title = paste0("Topic Prevalence Across All Narratives (", t_number, " Topics)"),
-           subtitle = "With the top seven words (using FREX algorithm) that contribute to each topic")
-  
-  
-}
-
-
-```
 
 Exploring other models (7-, 11-, 14-, and 25-topics)
 

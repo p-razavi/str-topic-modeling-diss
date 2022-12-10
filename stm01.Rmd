@@ -320,7 +320,7 @@ t1_25 <- topic_quality_plot(anger_fit_25t)
 six_t_plot <- stm_plot(anger_fit_6t, perc_bar_lim = 0.45, ylabel = "no")
 twelve_t_plot <- stm_plot(anger_fit_12t, perc_bar_lim = 0.45, ylabel = "no")
 sixteen_t_plot <- stm_plot(anger_fit_16t, perc_bar_lim = 0.45, ylabel = "no")
-twentytwo_t_plot <- stm_plot(anger_fit_22t, perc_bar_lim = 0.45, ylabel = "no")
+twentytwo_t_plot <- stm_plot(anger_fit_22t, perc_bar_lim = 0.45, ylabel = "yes")
 twentyfive_t_plot <- stm_plot(anger_fit_25t, perc_bar_lim = 0.45, ylabel = "yes")
 
 #three plots in a figure
@@ -330,6 +330,14 @@ twentyfive_t_plot <- stm_plot(anger_fit_25t, perc_bar_lim = 0.45, ylabel = "yes"
   three_p
   
   ##ggsave(plot = three_p, width = 8.5, height = 10.5, dpi = 300, filename = "three_topwords_w_proportions.png") 
+  
+#another three plots in a figure
+  three_p2 <- ggpubr::ggarrange(six_t_plot, twelve_t_plot, twentytwo_t_plot,
+                            ncol = 1, nrow = 3, align = "hv",
+                            heights = c(0.20, 0.337, 0.523))
+  three_p2
+  
+  ##ggsave(plot = three_p2, width = 8.5, height = 11, dpi = 300, filename = "another_three_topwords_w_proportions.png")   
 ```
 
 
@@ -359,8 +367,8 @@ prep_25t <- estimateEffect(1:25 ~ Condition, anger_fit_25t, meta = out$meta, unc
 #summary(prep_25t, topics = c(1:25))
 
 report_stm_cov_effect(prep_6t)
-report_stm_cov_effect(prep_12t)
-report_stm_cov_effect(prep_16t, save_as_csv = "stm_16t_results.csv")
+#report_stm_cov_effect(prep_12t, save_as_csv = "stm_12t_results.csv")
+#report_stm_cov_effect(prep_16t, save_as_csv = "stm_16t_results.csv")
 report_stm_cov_effect(prep_22t)
 report_stm_cov_effect(prep_25t)
 

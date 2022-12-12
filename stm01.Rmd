@@ -252,7 +252,7 @@ searchk_df <- read.csv("searchk_threshold5_topics2to40_results.csv") %>%
   heldout_plot <- ggplot(searchk_df, aes(x = K, y = heldout)) +
                     geom_point(color = "darkgreen") +
                     geom_line(color = "darkgreen") +
-                    labs(title = "Heldout Likelihood",
+                    labs(title = "Held-out Likelihood",
                          x = "Topic",
                          y = "Likelihood") +
                     theme_bw() +
@@ -455,9 +455,12 @@ df_w_stm_12t_long <- df_w_stm_12t %>%
     #all together
     all_histograms <- df_w_stm_12t_long %>% 
                                 mutate(across(Topic, factor, levels = c(paste("Topic", 1:12)))) %>% 
+                                group_by(Topic) %>% 
+                                mutate(med_theta = median(Theta)) %>% 
       ggplot(., aes(x = Theta, fill = Theta)) + 
                       geom_histogram(aes(y = ..density..), binwidth = 0.004, color = "darkblue", fill = "grey", size = 0.3) +
-                      geom_density(fill = "lightblue", color = "grey", alpha = 0.3) +
+                      #geom_density(fill = "lightblue", color = "grey", alpha = 0.3) +
+                      geom_vline(aes(xintercept = med_theta), color = "red", linetype = "dashed", size = 0.3) +
                       facet_wrap ( ~ Topic) +
                       xlim(0, 0.2) +
                       labs(x = expression(paste("Per-Document-Per-Topic Probability (", theta, ")")),

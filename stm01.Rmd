@@ -513,7 +513,37 @@ df_w_stm_12t_long <- df_w_stm_12t %>%
   
   #Possibly more interpretable: the LIFT method
       #cbind(paste("topic", 1:6), labels_6t[["lift"]]) %>% knitr::kable() %>% kableExtra::kable_styling()
-  
+
+#Create a table to report the top words associated with 12 topics  
+    topic_word_list <- data.frame(Topic = NA, Method = NA,
+                                  w1 = NA, w2 = NA, w3 = NA, w4 = NA, w5 = NA, 
+                                  w6 = NA, w7 = NA, w8 = NA, w9 = NA, w10 = NA)  
+        
+    for (i in 1:12){  
+      topic <- paste("Topic", i)
+      prob_words <- labels_12t[["prob"]][i,]
+      frex_words <- labels_12t[["frex"]][i,]
+      lift_words <- labels_12t[["lift"]][i,]
+      
+      prob_row <- c(topic, "Prob.", prob_words)
+      frex_row <- c(topic, "FREX", frex_words)
+      lift_row <- c(topic, "LIFT", lift_words)
+      
+      topic_word_list <- rbind(topic_word_list,
+                               prob_row,
+                               frex_row,
+                               lift_row)
+      
+    }  
+    
+    
+    topic_word_list_clean <- topic_word_list[-1,] %>% 
+                          tidyr::unite("stem_words", w1:w10, sep = ", ", remove = TRUE)
+    
+    #save for the manuscript table
+    #write.csv(topic_word_list_clean, "top_word_for_12_topics.csv")
+    
+    
 #Examining documents that are highly associated with topics
   
   example_topic1 <- findThoughts(anger_fit_12t, texts = meta$all_narratives, n = 3, topics = 1)$docs[[1]]

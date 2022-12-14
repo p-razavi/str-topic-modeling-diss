@@ -574,6 +574,47 @@ df_w_stm_12t_long <- df_w_stm_12t %>%
 
 ```
 
+# Figures of High Probability Words
+
+## Bar charts
+
+```{r}
+top_terms <- tidy(anger_fit_12t, matrix = "beta") %>% 
+                group_by(topic) %>% 
+                slice_max(beta, n = 10) %>% 
+                ungroup() %>% 
+                arrange(topic, -beta)
+
+top_terms %>% 
+  mutate(term = forcats::fct_reorder(term, beta)) %>% 
+      ggplot(aes(beta, term, fill = factor(topic))) + 
+      geom_col(show.legend = FALSE) + 
+      facet_wrap(~ topic, scales = "free")
+
+```
+
+
+## Word cloud
+
+```{r}
+top_25_terms <- tidy(anger_fit_12t, matrix = "beta") %>% 
+                group_by(topic) %>% 
+                slice_max(beta, n = 25) %>% 
+                ungroup() %>% 
+                arrange(topic, -beta)
+
+
+top_25_terms %>% 
+  mutate(term = forcats::fct_reorder(term, beta)) %>% 
+    ggplot(aes(label = term, size = beta, color = factor(sample.int(10, nrow(top_25_terms), replace = TRUE)))) +
+    ggwordcloud::geom_text_wordcloud(rm_outside = TRUE) +
+    scale_size_area(max_size = 12) +
+    facet_wrap(~ topic) +
+    theme_minimal()
+```
+
+
+
 # Topic correlations
 
 ```{r}
